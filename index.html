@@ -440,19 +440,6 @@
                 <span class="error-message" id="error-heightA"></span>
               </div>
             </div>
-            <div class="form-group">
-              <label>Orientation</label>
-              <div class="radio-group">
-                <label>
-                  <input type="radio" name="orientationA" value="left" checked>
-                  Narrow end on left
-                </label>
-                <label>
-                  <input type="radio" name="orientationA" value="right">
-                  Narrow end on right
-                </label>
-              </div>
-            </div>
           </div>
 
           <!-- TRAPEZOID B (shown only in double mode) -->
@@ -473,19 +460,6 @@
                 <label for="heightB">Height</label>
                 <input type="number" id="heightB" name="heightB" step="0.0001" min="0.0001" value="36">
                 <span class="error-message" id="error-heightB"></span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Orientation</label>
-              <div class="radio-group">
-                <label>
-                  <input type="radio" name="orientationB" value="left" checked>
-                  Narrow end on left
-                </label>
-                <label>
-                  <input type="radio" name="orientationB" value="right">
-                  Narrow end on right
-                </label>
               </div>
             </div>
           </div>
@@ -1144,13 +1118,13 @@
           topW: parseInch(document.getElementById('topWidthA').value),
           bottomW: parseInch(document.getElementById('bottomWidthA').value),
           height: parseInch(document.getElementById('heightA').value),
-          orientation: document.querySelector('input[name="orientationA"]:checked').value
+          orientation: 'left'
         },
         trapB: doubleModeCheckbox.checked ? {
           topW: parseInch(document.getElementById('topWidthB').value),
           bottomW: parseInch(document.getElementById('bottomWidthB').value),
           height: parseInch(document.getElementById('heightB').value),
-          orientation: document.querySelector('input[name="orientationB"]:checked').value
+          orientation: 'left'
         } : null
       };
     }
