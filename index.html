@@ -729,16 +729,19 @@
      * @returns {Object} - Nesting result
      */
     function nestSingle(trap, plateL, plateW, margin) {
-      const fits = checkFit(trap, plateL, plateW, margin);
+      // Flip trapezoid to make it right-side up (narrow at top, wide at bottom)
+      const trapFlipped = flipTrapezoidVertical(trap);
+
+      const fits = checkFit(trapFlipped, plateL, plateW, margin);
 
       // Center the trapezoid
-      const x = (plateW - trap.width) / 2;
-      const y = (plateL - trap.height) / 2;
+      const x = (plateW - trapFlipped.width) / 2;
+      const y = (plateL - trapFlipped.height) / 2;
 
       return {
         fits,
         trapezoids: [{
-          ...trap,
+          ...trapFlipped,
           x,
           y,
           label: 'A'
@@ -777,67 +780,68 @@
       const availableW = plateW - 2 * margin;
       const availableL = plateL - 2 * margin;
 
-      // Flip trapezoid B upside down for better nesting
-      const trapBFlipped = flipTrapezoidVertical(trapB);
+      // Flip trapezoid A to make it right-side up (narrow at top, wide at bottom)
+      // Leave trapezoid B unflipped to keep it upside down (wide at top, narrow at bottom)
+      const trapAFlipped = flipTrapezoidVertical(trapA);
 
       // Try side-by-side placement (along plate width)
-      const totalWidth = trapA.width + gap + trapBFlipped.width;
-      const maxHeight = Math.max(trapA.height, trapBFlipped.height);
+      const totalWidth = trapAFlipped.width + gap + trapB.width;
+      const maxHeight = Math.max(trapAFlipped.height, trapB.height);
 
       if (totalWidth <= availableW && maxHeight <= availableL) {
         // Center vertically
         const startY = margin + (availableL - maxHeight) / 2;
-        const yA = startY + (maxHeight - trapA.height) / 2;
-        const yB = startY + (maxHeight - trapBFlipped.height) / 2;
+        const yA = startY + (maxHeight - trapAFlipped.height) / 2;
+        const yB = startY + (maxHeight - trapB.height) / 2;
 
         // Place side by side, centered horizontally
         const startX = margin + (availableW - totalWidth) / 2;
         const xA = startX;
-        const xB = startX + trapA.width + gap;
+        const xB = startX + trapAFlipped.width + gap;
 
         return {
           fits: true,
           trapezoids: [
-            { ...trapA, x: xA, y: yA, label: 'A' },
-            { ...trapBFlipped, x: xB, y: yB, label: 'B' }
+            { ...trapAFlipped, x: xA, y: yA, label: 'A' },
+            { ...trapB, x: xB, y: yB, label: 'B' }
           ]
         };
       }
 
       // Try lengthwise placement (stacked along plate length) as fallback
-      const totalLengthwise = trapA.height + gap + trapBFlipped.height;
-      const maxWidthLengthwise = Math.max(trapA.width, trapBFlipped.width);
+      const totalLengthwise = trapAFlipped.height + gap + trapB.height;
+      const maxWidthLengthwise = Math.max(trapAFlipped.width, trapB.width);
 
       if (totalLengthwise <= availableL && maxWidthLengthwise <= availableW) {
         // Center horizontally
-        const xA = margin + (availableW - trapA.width) / 2;
-        const xB = margin + (availableW - trapBFlipped.width) / 2;
+        const xA = margin + (availableW - trapAFlipped.width) / 2;
+        const xB = margin + (availableW - trapB.width) / 2;
 
         // Stack vertically, centered
         const startY = margin + (availableL - totalLengthwise) / 2;
         const yA = startY;
-        const yB = startY + trapA.height + gap;
+        const yB = startY + trapAFlipped.height + gap;
 
         return {
           fits: true,
           trapezoids: [
-            { ...trapA, x: xA, y: yA, label: 'A' },
-            { ...trapBFlipped, x: xB, y: yB, label: 'B' }
+            { ...trapAFlipped, x: xA, y: yA, label: 'A' },
+            { ...trapB, x: xB, y: yB, label: 'B' }
           ]
         };
       }
 
       // Doesn't fit - return positions anyway for visualization
       const xA = margin;
-      const xB = margin + trapA.width + gap;
+      const xB = margin + trapAFlipped.width + gap;
       const yA = margin;
       const yB = margin;
 
       return {
         fits: false,
         trapezoids: [
-          { ...trapA, x: xA, y: yA, label: 'A' },
-          { ...trapBFlipped, x: xB, y: yB, label: 'B' }
+          { ...trapAFlipped, x: xA, y: yA, label: 'A' },
+          { ...trapB, x: xB, y: yB, label: 'B' }
         ]
       };
     }
