@@ -1048,6 +1048,50 @@
     }
 
     /**
+     * Validate trapezoid width relationship (top must be <= bottom)
+     * @param {string} trapName - 'A' or 'B'
+     * @returns {boolean} - True if valid
+     */
+    function validateTrapezoidWidths(trapName) {
+      const topWidthInput = document.getElementById(`topWidth${trapName}`);
+      const bottomWidthInput = document.getElementById(`bottomWidth${trapName}`);
+      const topErrorEl = document.getElementById(`error-topWidth${trapName}`);
+      const bottomErrorEl = document.getElementById(`error-bottomWidth${trapName}`);
+
+      const topWidth = parseInch(topWidthInput.value);
+      const bottomWidth = parseInch(bottomWidthInput.value);
+
+      // Only validate if both values are valid numbers
+      if (topWidth === null || bottomWidth === null) {
+        return true; // Let the individual field validation handle this
+      }
+
+      if (topWidth > bottomWidth) {
+        topWidthInput.classList.add('error');
+        topErrorEl.textContent = 'Top width must be ≤ bottom width';
+        topErrorEl.classList.add('show');
+
+        bottomWidthInput.classList.add('error');
+        bottomErrorEl.textContent = 'Bottom width must be ≥ top width';
+        bottomErrorEl.classList.add('show');
+
+        return false;
+      }
+
+      // Clear errors if valid (but only the width relationship errors)
+      if (topErrorEl.textContent.includes('width must be')) {
+        topWidthInput.classList.remove('error');
+        topErrorEl.classList.remove('show');
+      }
+      if (bottomErrorEl.textContent.includes('width must be')) {
+        bottomWidthInput.classList.remove('error');
+        bottomErrorEl.classList.remove('show');
+      }
+
+      return true;
+    }
+
+    /**
      * Validate all inputs
      * @returns {boolean} - True if all valid
      */
@@ -1065,6 +1109,15 @@
           allValid = false;
         }
       });
+
+      // Validate trapezoid width relationships
+      if (!validateTrapezoidWidths('A')) {
+        allValid = false;
+      }
+
+      if (doubleModeCheckbox.checked && !validateTrapezoidWidths('B')) {
+        allValid = false;
+      }
 
       return allValid;
     }
@@ -1255,7 +1308,30 @@
 
     // Input validation on blur
     form.querySelectorAll('input[type="number"]').forEach(input => {
-      input.addEventListener('blur', () => validateInput(input));
+      input.addEventListener('blur', () => {
+        validateInput(input);
+        // Also validate trapezoid width relationships when width fields change
+        if (input.id === 'topWidthA' || input.id === 'bottomWidthA') {
+          validateTrapezoidWidths('A');
+        } else if (input.id === 'topWidthB' || input.id === 'bottomWidthB') {
+          validateTrapezoidWidths('B');
+        }
+      });
+    });
+
+    // Real-time validation for trapezoid widths on input
+    ['topWidthA', 'bottomWidthA'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        validateTrapezoidWidths('A');
+      });
+    });
+
+    ['topWidthB', 'bottomWidthB'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        if (doubleModeCheckbox.checked) {
+          validateTrapezoidWidths('B');
+        }
+      });
     });
 
     // Enter key triggers draw
