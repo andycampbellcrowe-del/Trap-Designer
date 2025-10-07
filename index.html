@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NTS Trap Designer</title>
+  <!--
+    ========================================================================
+    NTS TRAP DESIGNER - Trapezoid Nesting Visualization Tool
+    ========================================================================
+
+    USAGE:
+    1. Enter plate dimensions (length, width, thickness) in inches
+    2. Enter trapezoid dimensions (top width, bottom width, height)
+    3. Toggle "Double Nest Mode" to add a second trapezoid
+    4. Adjust margin and gap values as needed (default 0.125")
+    5. Click "Draw" to visualize the nesting arrangement
+    6. Click "Download SVG" to save the current drawing
+    7. Use preset examples to test different scenarios
+
+    All dimensions must be positive numbers with up to 4 decimal places.
+    The drawing represents real dimensions scaled uniformly to fit the viewport.
+    Red dashed outlines indicate shapes that don't fit within the plate bounds.
+
+    ========================================================================
+  -->
+
+  <style>
+    /* ===== CSS RESET & BASE STYLES ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    /* ===== LAYOUT ===== */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 30px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    header p {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-top: 5px;
+    }
+
+    .main-content {
+      display: flex;
+      flex-wrap: wrap;
+      min-height: 600px;
+    }
+
+    .left-panel {
+      flex: 0 0 400px;
+      padding: 30px;
+      border-right: 1px solid #e0e0e0;
+      overflow-y: auto;
+      max-height: calc(100vh - 200px);
+    }
+
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 600px;
+    }
+
+    /* ===== FORM STYLES ===== */
+    .form-section {
+      margin-bottom: 25px;
+    }
+
+    .form-section h2 {
+      font-size: 18px;
+      color: #667eea;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 5px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 5px;
+      color: #555;
+    }
+
+    input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    input[type="number"]:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    input.error {
+      border-color: #e53e3e;
+    }
+
+    .error-message {
+      color: #e53e3e;
+      font-size: 12px;
+      margin-top: 3px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+
+    .checkbox-group label {
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 5px;
+    }
+
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      font-weight: normal;
+    }
+
+    .radio-group input[type="radio"] {
+      margin-right: 5px;
+    }
+
+    /* ===== BUTTON STYLES ===== */
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+      flex: 1;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+      flex: 1;
+    }
+
+    .btn-secondary:hover {
+      background: #d0d0d0;
+    }
+
+    .btn-success {
+      background: #48bb78;
+      color: white;
+      flex: 1;
+    }
+
+    .btn-success:hover {
+      background: #38a169;
+    }
+
+    .preset-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn-preset {
+      background: #f7fafc;
+      color: #667eea;
+      border: 1px solid #667eea;
+      padding: 8px 12px;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    .btn-preset:hover {
+      background: #edf2f7;
+    }
+
+    /* ===== SVG CANVAS ===== */
+    .canvas-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      background: #fafafa;
+    }
+
+    #canvas {
+      width: 100%;
+      height: 100%;
+      max-height: 600px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      background: white;
+    }
+
+    /* ===== INFO FOOTER ===== */
+    .info-footer {
+      padding: 20px 30px;
+      background: #f7fafc;
+      border-top: 1px solid #e0e0e0;
+      font-size: 13px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .info-item {
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+      border-left: 3px solid #667eea;
+    }
+
+    .info-item strong {
+      display: block;
+      color: #667eea;
+      margin-bottom: 3px;
+    }
+
+    .info-item.warning {
+      border-left-color: #e53e3e;
+    }
+
+    .info-item.warning strong {
+      color: #e53e3e;
+    }
+
+    .info-item.success {
+      border-left-color: #48bb78;
+    }
+
+    .info-item.success strong {
+      color: #48bb78;
+    }
+
+    /* ===== LEGEND ===== */
+    .legend {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      gap: 20px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      border: 1px solid #333;
+    }
+
+    /* ===== TOOLTIPS ===== */
+    .tooltip {
+      position: relative;
+    }
+
+    /* ===== HIDDEN ELEMENTS ===== */
+    .hidden {
+      display: none !important;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+      .left-panel {
+        flex: 0 0 100%;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .right-panel {
+        flex: 0 0 100%;
+        min-width: 100%;
+      }
+
+      .canvas-wrapper {
+        min-height: 500px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>NTS Trap Designer</h1>
+      <p>Visualize trapezoid nesting on rectangular steel plates</p>
+    </header>
+
+    <div class="main-content">
+      <!-- LEFT PANEL: INPUTS -->
+      <div class="left-panel">
+        <form id="trapForm" novalidate>
+          <!-- PLATE DIMENSIONS -->
+          <div class="form-section">
+            <h2>Plate Dimensions (inches)</h2>
+            <div class="input-row">
+              <div class="form-group">
+                <label for="plateLength">Length</label>
+                <input type="number" id="plateLength" name="plateLength" step="0.0001" min="0.0001" value="96" required>
+                <span class="error-message" id="error-plateLength"></span>
+              </div>
+              <div class="form-group">
+                <label for="plateWidth">Width</label>
+                <input type="number" id="plateWidth" name="plateWidth" step="0.0001" min="0.0001" value="48" required>
+                <span class="error-message" id="error-plateWidth"></span>
+              </div>
+              <div class="form-group">
+                <label for="plateThickness">Thickness</label>
+                <input type="number" id="plateThickness" name="plateThickness" step="0.0001" min="0.0001" value="0.375" required>
+                <span class="error-message" id="error-plateThickness"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- OPTIONS -->
+          <div class="form-section">
+            <h2>Options</h2>
+            <div class="input-row">
+              <div class="form-group">
+                <label for="margin">Margin</label>
+                <input type="number" id="margin" name="margin" step="0.0001" min="0" value="0.125" required>
+                <span class="error-message" id="error-margin"></span>
+              </div>
+              <div class="form-group">
+                <label for="gap">Gap</label>
+                <input type="number" id="gap" name="gap" step="0.0001" min="0" value="0.125" required>
+                <span class="error-message" id="error-gap"></span>
+              </div>
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="doubleMode" name="doubleMode">
+              <label for="doubleMode">Enable Double Nest Mode</label>
+            </div>
+          </div>
+
+          <!-- TRAPEZOID A -->
+          <div class="form-section">
+            <h2>Trapezoid A</h2>
+            <div class="input-row">
+              <div class="form-group">
+                <label for="topWidthA">Top Width</label>
+                <input type="number" id="topWidthA" name="topWidthA" step="0.0001" min="0.0001" value="6" required>
+                <span class="error-message" id="error-topWidthA"></span>
+              </div>
+              <div class="form-group">
+                <label for="bottomWidthA">Bottom Width</label>
+                <input type="number" id="bottomWidthA" name="bottomWidthA" step="0.0001" min="0.0001" value="18" required>
+                <span class="error-message" id="error-bottomWidthA"></span>
+              </div>
+              <div class="form-group">
+                <label for="heightA">Height</label>
+                <input type="number" id="heightA" name="heightA" step="0.0001" min="0.0001" value="36" required>
+                <span class="error-message" id="error-heightA"></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Orientation</label>
+              <div class="radio-group">
+                <label>
+                  <input type="radio" name="orientationA" value="left" checked>
+                  Narrow end on left
+                </label>
+                <label>
+                  <input type="radio" name="orientationA" value="right">
+                  Narrow end on right
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- TRAPEZOID B (shown only in double mode) -->
+          <div class="form-section hidden" id="trapBSection">
+            <h2>Trapezoid B</h2>
+            <div class="input-row">
+              <div class="form-group">
+                <label for="topWidthB">Top Width</label>
+                <input type="number" id="topWidthB" name="topWidthB" step="0.0001" min="0.0001" value="10">
+                <span class="error-message" id="error-topWidthB"></span>
+              </div>
+              <div class="form-group">
+                <label for="bottomWidthB">Bottom Width</label>
+                <input type="number" id="bottomWidthB" name="bottomWidthB" step="0.0001" min="0.0001" value="14">
+                <span class="error-message" id="error-bottomWidthB"></span>
+              </div>
+              <div class="form-group">
+                <label for="heightB">Height</label>
+                <input type="number" id="heightB" name="heightB" step="0.0001" min="0.0001" value="36">
+                <span class="error-message" id="error-heightB"></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Orientation</label>
+              <div class="radio-group">
+                <label>
+                  <input type="radio" name="orientationB" value="left" checked>
+                  Narrow end on left
+                </label>
+                <label>
+                  <input type="radio" name="orientationB" value="right">
+                  Narrow end on right
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- ACTION BUTTONS -->
+          <div class="button-group">
+            <button type="submit" class="btn-primary">Draw</button>
+            <button type="button" id="resetBtn" class="btn-secondary">Reset</button>
+            <button type="button" id="downloadBtn" class="btn-success">Download SVG</button>
+          </div>
+
+          <!-- PRESET EXAMPLES -->
+          <div class="form-section">
+            <h2>Preset Examples</h2>
+            <div class="preset-buttons">
+              <button type="button" class="btn-preset" id="preset1">
+                Example 1: Single trapezoid (fits)
+              </button>
+              <button type="button" class="btn-preset" id="preset2">
+                Example 2: Double nest (fits)
+              </button>
+              <button type="button" class="btn-preset" id="preset3">
+                Example 3: Single trapezoid (doesn't fit)
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- RIGHT PANEL: SVG CANVAS -->
+      <div class="right-panel">
+        <div class="canvas-wrapper">
+          <svg id="canvas" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
+            <!-- SVG content will be generated by JavaScript -->
+            <defs>
+              <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+                <feOffset dx="1" dy="2" result="offsetblur"/>
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope="0.3"/>
+                </feComponentTransfer>
+                <feMerge>
+                  <feMergeNode/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+            <text x="400" y="300" text-anchor="middle" fill="#999" font-size="18">
+              Enter dimensions and click Draw to visualize
+            </text>
+          </svg>
+        </div>
+
+        <div class="info-footer">
+          <div class="info-grid" id="infoGrid">
+            <div class="info-item">
+              <strong>Plate</strong>
+              <span id="info-plate">—</span>
+            </div>
+            <div class="info-item">
+              <strong>Trapezoid A</strong>
+              <span id="info-trapA">—</span>
+            </div>
+            <div class="info-item hidden" id="info-trapB-container">
+              <strong>Trapezoid B</strong>
+              <span id="info-trapB">—</span>
+            </div>
+            <div class="info-item">
+              <strong>Utilization</strong>
+              <span id="info-utilization">—</span>
+            </div>
+            <div class="info-item" id="info-fit-container">
+              <strong>Fit Status</strong>
+              <span id="info-fit">—</span>
+            </div>
+          </div>
+
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-color" style="background: rgba(59, 130, 246, 0.6);"></div>
+              <span>Trapezoid A</span>
+            </div>
+            <div class="legend-item hidden" id="legendB">
+              <div class="legend-color" style="background: rgba(249, 115, 22, 0.6);"></div>
+              <span>Trapezoid B</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================================================
+    // UTILITY FUNCTIONS
+    // ========================================================================
+
+    /**
+     * Parse inch value and validate (positive number, max 4 decimal places)
+     * @param {string|number} value - The value to parse
+     * @returns {number|null} - Parsed number or null if invalid
+     */
+    function parseInch(value) {
+      const num = parseFloat(value);
+      if (isNaN(num) || num <= 0) return null;
+
+      // Check decimal places
+      const str = value.toString();
+      const decimalIndex = str.indexOf('.');
+      if (decimalIndex !== -1) {
+        const decimals = str.length - decimalIndex - 1;
+        if (decimals > 4) return null;
+      }
+
+      return num;
+    }
+
+    /**
+     * Format inch value for display
+     * @param {number} value - The value to format
+     * @param {number} dp - Decimal places (default 4)
+     * @returns {string} - Formatted string
+     */
+    function formatInch(value, dp = 4) {
+      return value.toFixed(dp).replace(/\.?0+$/, '');
+    }
+
+    /**
+     * Compute uniform scale factor to fit plate in SVG viewport
+     * @param {number} plateW - Plate width in inches
+     * @param {number} plateL - Plate length in inches
+     * @param {number} svgW - SVG viewport width
+     * @param {number} svgH - SVG viewport height
+     * @param {number} paddingPct - Padding percentage (0-1)
+     * @returns {number} - Scale factor (SVG units per inch)
+     */
+    function computeScale(plateW, plateL, svgW, svgH, paddingPct) {
+      const availableW = svgW * (1 - 2 * paddingPct);
+      const availableH = svgH * (1 - 2 * paddingPct);
+
+      const scaleX = availableW / plateW;
+      const scaleY = availableH / plateL;
+
+      return Math.min(scaleX, scaleY);
+    }
+
+    /**
+     * Export SVG to file
+     * @param {SVGElement} svgEl - The SVG element to export
+     * @param {string} filename - The filename for download
+     */
+    function exportSVG(svgEl, filename) {
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const blob = new Blob([svgData], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // ========================================================================
+    // GEOMETRY FUNCTIONS
+    // ========================================================================
+
+    /**
+     * Calculate trapezoid polygon points (isosceles trapezoid)
+     * @param {number} topW - Top width
+     * @param {number} bottomW - Bottom width
+     * @param {number} height - Height
+     * @param {string} orientation - 'left' or 'right' (narrow end position)
+     * @returns {Array} - Array of {x, y} points
+     */
+    function calculateTrapezoidPoints(topW, bottomW, height, orientation) {
+      // Determine which is wider
+      const maxWidth = Math.max(topW, bottomW);
+
+      // Calculate offsets to center narrower edge over wider edge
+      const topLeftX = (maxWidth - topW) / 2;
+      const bottomLeftX = (maxWidth - bottomW) / 2;
+
+      // Create points (counter-clockwise from bottom-left)
+      let points = [
+        { x: bottomLeftX, y: 0 },
+        { x: bottomLeftX + bottomW, y: 0 },
+        { x: topLeftX + topW, y: height },
+        { x: topLeftX, y: height }
+      ];
+
+      // Determine narrow end
+      const narrowIsTop = topW < bottomW;
+
+      // Apply orientation (flip horizontally if needed)
+      if ((narrowIsTop && orientation === 'right') || (!narrowIsTop && orientation === 'left')) {
+        points = points.map(p => ({ x: maxWidth - p.x, y: p.y }));
+      }
+
+      return { points, width: maxWidth, height };
+    }
+
+    /**
+     * Calculate trapezoid area
+     * @param {number} topW - Top width
+     * @param {number} bottomW - Bottom width
+     * @param {number} height - Height
+     * @returns {number} - Area in square inches
+     */
+    function calculateTrapezoidArea(topW, bottomW, height) {
+      return height * (topW + bottomW) / 2;
+    }
+
+    /**
+     * Check if trapezoid fits within plate with margin
+     * @param {Object} trap - Trapezoid data
+     * @param {number} plateL - Plate length
+     * @param {number} plateW - Plate width
+     * @param {number} margin - Margin
+     * @returns {boolean} - True if fits
+     */
+    function checkFit(trap, plateL, plateW, margin) {
+      const availableW = plateW - 2 * margin;
+      const availableL = plateL - 2 * margin;
+
+      return trap.width <= availableW && trap.height <= availableL;
+    }
+
+    // ========================================================================
+    // NESTING LOGIC
+    // ========================================================================
+
+    /**
+     * Nest single trapezoid (centered)
+     * @param {Object} trap - Trapezoid data
+     * @param {number} plateL - Plate length
+     * @param {number} plateW - Plate width
+     * @param {number} margin - Margin
+     * @returns {Object} - Nesting result
+     */
+    function nestSingle(trap, plateL, plateW, margin) {
+      const fits = checkFit(trap, plateL, plateW, margin);
+
+      // Center the trapezoid
+      const x = (plateW - trap.width) / 2;
+      const y = (plateL - trap.height) / 2;
+
+      return {
+        fits,
+        trapezoids: [{
+          ...trap,
+          x,
+          y,
+          label: 'A'
+        }]
+      };
+    }
+
+    /**
+     * Flip trapezoid points vertically (upside down)
+     * @param {Object} trap - Trapezoid data
+     * @returns {Object} - Flipped trapezoid data
+     */
+    function flipTrapezoidVertical(trap) {
+      const flippedPoints = trap.points.map(p => ({
+        x: p.x,
+        y: trap.height - p.y
+      }));
+
+      return {
+        ...trap,
+        points: flippedPoints
+      };
+    }
+
+    /**
+     * Nest double trapezoids (side-by-side with one inverted)
+     * @param {Object} trapA - Trapezoid A data
+     * @param {Object} trapB - Trapezoid B data
+     * @param {number} plateL - Plate length
+     * @param {number} plateW - Plate width
+     * @param {number} margin - Margin
+     * @param {number} gap - Gap between trapezoids
+     * @returns {Object} - Nesting result
+     */
+    function nestDouble(trapA, trapB, plateL, plateW, margin, gap) {
+      const availableW = plateW - 2 * margin;
+      const availableL = plateL - 2 * margin;
+
+      // Flip trapezoid B upside down for better nesting
+      const trapBFlipped = flipTrapezoidVertical(trapB);
+
+      // Try side-by-side placement (along plate width)
+      const totalWidth = trapA.width + gap + trapBFlipped.width;
+      const maxHeight = Math.max(trapA.height, trapBFlipped.height);
+
+      if (totalWidth <= availableW && maxHeight <= availableL) {
+        // Center vertically
+        const startY = margin + (availableL - maxHeight) / 2;
+        const yA = startY + (maxHeight - trapA.height) / 2;
+        const yB = startY + (maxHeight - trapBFlipped.height) / 2;
+
+        // Place side by side, centered horizontally
+        const startX = margin + (availableW - totalWidth) / 2;
+        const xA = startX;
+        const xB = startX + trapA.width + gap;
+
+        return {
+          fits: true,
+          trapezoids: [
+            { ...trapA, x: xA, y: yA, label: 'A' },
+            { ...trapBFlipped, x: xB, y: yB, label: 'B' }
+          ]
+        };
+      }
+
+      // Try lengthwise placement (stacked along plate length) as fallback
+      const totalLengthwise = trapA.height + gap + trapBFlipped.height;
+      const maxWidthLengthwise = Math.max(trapA.width, trapBFlipped.width);
+
+      if (totalLengthwise <= availableL && maxWidthLengthwise <= availableW) {
+        // Center horizontally
+        const xA = margin + (availableW - trapA.width) / 2;
+        const xB = margin + (availableW - trapBFlipped.width) / 2;
+
+        // Stack vertically, centered
+        const startY = margin + (availableL - totalLengthwise) / 2;
+        const yA = startY;
+        const yB = startY + trapA.height + gap;
+
+        return {
+          fits: true,
+          trapezoids: [
+            { ...trapA, x: xA, y: yA, label: 'A' },
+            { ...trapBFlipped, x: xB, y: yB, label: 'B' }
+          ]
+        };
+      }
+
+      // Doesn't fit - return positions anyway for visualization
+      const xA = margin;
+      const xB = margin + trapA.width + gap;
+      const yA = margin;
+      const yB = margin;
+
+      return {
+        fits: false,
+        trapezoids: [
+          { ...trapA, x: xA, y: yA, label: 'A' },
+          { ...trapBFlipped, x: xB, y: yB, label: 'B' }
+        ]
+      };
+    }
+
+    // ========================================================================
+    // DRAWING FUNCTIONS
+    // ========================================================================
+
+    const canvas = document.getElementById('canvas');
+    const SVG_WIDTH = 800;
+    const SVG_HEIGHT = 600;
+    const PADDING_PCT = 0.05;
+
+    /**
+     * Clear SVG canvas
+     */
+    function clearCanvas() {
+      // Remove all children except defs
+      while (canvas.lastChild && canvas.lastChild.tagName !== 'defs') {
+        canvas.removeChild(canvas.lastChild);
+      }
+      // Keep only defs as first child
+      const defs = canvas.querySelector('defs');
+      canvas.innerHTML = '';
+      if (defs) canvas.appendChild(defs);
+    }
+
+    /**
+     * Draw the complete visualization
+     * @param {Object} data - All drawing data
+     */
+    function draw(data) {
+      clearCanvas();
+
+      const { plate, trapezoids, fits, scale } = data;
+
+      // Calculate plate position (centered with padding)
+      const plateWidthSVG = plate.width * scale;
+      const plateLengthSVG = plate.length * scale;
+      const plateX = (SVG_WIDTH - plateWidthSVG) / 2;
+      const plateY = (SVG_HEIGHT - plateLengthSVG) / 2;
+
+      // Draw grid (optional - light background grid)
+      drawGrid(plateX, plateY, plate.width, plate.length, scale);
+
+      // Draw plate
+      drawPlate(plateX, plateY, plateWidthSVG, plateLengthSVG, plate);
+
+      // Draw trapezoids
+      trapezoids.forEach((trap, index) => {
+        const color = index === 0 ? 'rgba(59, 130, 246, 0.6)' : 'rgba(249, 115, 22, 0.6)';
+        drawTrapezoid(trap, plateX, plateY, scale, color, !fits);
+      });
+
+      // Draw dimension labels
+      drawDimensionLabels(plateX, plateY, plateWidthSVG, plateLengthSVG, plate);
+    }
+
+    /**
+     * Draw background grid
+     */
+    function drawGrid(plateX, plateY, plateW, plateL, scale) {
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      group.setAttribute('opacity', '0.2');
+
+      // Vertical lines every 1 inch
+      for (let i = 0; i <= plateW; i++) {
+        const x = plateX + i * scale;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x);
+        line.setAttribute('y1', plateY);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', plateY + plateL * scale);
+        line.setAttribute('stroke', '#ccc');
+        line.setAttribute('stroke-width', i % 5 === 0 ? '1' : '0.5');
+        group.appendChild(line);
+
+        // Labels every 5 inches
+        if (i % 5 === 0 && i > 0 && i < plateW) {
+          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          text.setAttribute('x', x);
+          text.setAttribute('y', plateY - 5);
+          text.setAttribute('text-anchor', 'middle');
+          text.setAttribute('font-size', '10');
+          text.setAttribute('fill', '#999');
+          text.textContent = i + '"';
+          group.appendChild(text);
+        }
+      }
+
+      // Horizontal lines every 1 inch
+      for (let i = 0; i <= plateL; i++) {
+        const y = plateY + i * scale;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', plateX);
+        line.setAttribute('y1', y);
+        line.setAttribute('x2', plateX + plateW * scale);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', '#ccc');
+        line.setAttribute('stroke-width', i % 5 === 0 ? '1' : '0.5');
+        group.appendChild(line);
+
+        // Labels every 5 inches
+        if (i % 5 === 0 && i > 0 && i < plateL) {
+          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          text.setAttribute('x', plateX - 5);
+          text.setAttribute('y', y + 3);
+          text.setAttribute('text-anchor', 'end');
+          text.setAttribute('font-size', '10');
+          text.setAttribute('fill', '#999');
+          text.textContent = i + '"';
+          group.appendChild(text);
+        }
+      }
+
+      canvas.appendChild(group);
+    }
+
+    /**
+     * Draw plate outline
+     */
+    function drawPlate(x, y, width, height, plate) {
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', x);
+      rect.setAttribute('y', y);
+      rect.setAttribute('width', width);
+      rect.setAttribute('height', height);
+      rect.setAttribute('fill', 'none');
+      rect.setAttribute('stroke', '#666');
+      rect.setAttribute('stroke-width', '2');
+      rect.setAttribute('rx', '5');
+      canvas.appendChild(rect);
+    }
+
+    /**
+     * Draw trapezoid
+     */
+    function drawTrapezoid(trap, plateX, plateY, scale, color, isError) {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+
+      // Convert points to SVG coordinates
+      const svgPoints = trap.points.map(p => {
+        const x = plateX + (trap.x + p.x) * scale;
+        const y = plateY + (trap.y + p.y) * scale;
+        return `${x},${y}`;
+      }).join(' ');
+
+      polygon.setAttribute('points', svgPoints);
+      polygon.setAttribute('fill', isError ? color.replace('0.6', '0.3') : color);
+      polygon.setAttribute('stroke', isError ? '#e53e3e' : '#333');
+      polygon.setAttribute('stroke-width', isError ? '2' : '1');
+      polygon.setAttribute('stroke-dasharray', isError ? '5,5' : 'none');
+
+      if (!isError) {
+        polygon.setAttribute('filter', 'url(#dropShadow)');
+      }
+
+      // Add tooltip
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      title.textContent = `Trapezoid ${trap.label}: ${formatInch(trap.topW)}" × ${formatInch(trap.bottomW)}" × ${formatInch(trap.height)}" | Area: ${formatInch(trap.area, 2)} sq in`;
+      polygon.appendChild(title);
+
+      canvas.appendChild(polygon);
+    }
+
+    /**
+     * Draw dimension labels
+     */
+    function drawDimensionLabels(x, y, width, height, plate) {
+      // Plate dimensions label in top-left corner
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', x + 10);
+      text.setAttribute('y', y + 20);
+      text.setAttribute('font-size', '12');
+      text.setAttribute('fill', '#666');
+      text.setAttribute('font-weight', 'bold');
+      text.textContent = `${formatInch(plate.length)}" × ${formatInch(plate.width)}" × ${formatInch(plate.thickness)}"`;
+      canvas.appendChild(text);
+    }
+
+    // ========================================================================
+    // FORM VALIDATION & HANDLING
+    // ========================================================================
+
+    const form = document.getElementById('trapForm');
+    const doubleModeCheckbox = document.getElementById('doubleMode');
+    const trapBSection = document.getElementById('trapBSection');
+
+    /**
+     * Validate a single input field
+     * @param {HTMLInputElement} input - The input element
+     * @returns {boolean} - True if valid
+     */
+    function validateInput(input) {
+      const errorEl = document.getElementById(`error-${input.id}`);
+      const value = parseInch(input.value);
+
+      if (value === null) {
+        input.classList.add('error');
+        errorEl.textContent = 'Must be a positive number with max 4 decimal places';
+        errorEl.classList.add('show');
+        return false;
+      }
+
+      input.classList.remove('error');
+      errorEl.classList.remove('show');
+      return true;
+    }
+
+    /**
+     * Validate all inputs
+     * @returns {boolean} - True if all valid
+     */
+    function validateAllInputs() {
+      const inputs = form.querySelectorAll('input[type="number"]');
+      let allValid = true;
+
+      inputs.forEach(input => {
+        // Skip trapezoid B inputs if not in double mode
+        if (input.name.endsWith('B') && !doubleModeCheckbox.checked) {
+          return;
+        }
+
+        if (!validateInput(input)) {
+          allValid = false;
+        }
+      });
+
+      return allValid;
+    }
+
+    /**
+     * Get form data
+     * @returns {Object} - Form data
+     */
+    function getFormData() {
+      return {
+        plate: {
+          length: parseInch(document.getElementById('plateLength').value),
+          width: parseInch(document.getElementById('plateWidth').value),
+          thickness: parseInch(document.getElementById('plateThickness').value)
+        },
+        margin: parseInch(document.getElementById('margin').value),
+        gap: parseInch(document.getElementById('gap').value),
+        doubleMode: doubleModeCheckbox.checked,
+        trapA: {
+          topW: parseInch(document.getElementById('topWidthA').value),
+          bottomW: parseInch(document.getElementById('bottomWidthA').value),
+          height: parseInch(document.getElementById('heightA').value),
+          orientation: document.querySelector('input[name="orientationA"]:checked').value
+        },
+        trapB: doubleModeCheckbox.checked ? {
+          topW: parseInch(document.getElementById('topWidthB').value),
+          bottomW: parseInch(document.getElementById('bottomWidthB').value),
+          height: parseInch(document.getElementById('heightB').value),
+          orientation: document.querySelector('input[name="orientationB"]:checked').value
+        } : null
+      };
+    }
+
+    /**
+     * Update info display
+     */
+    function updateInfo(data) {
+      const { plate, trapezoids, fits, utilization } = data;
+
+      // Plate info
+      document.getElementById('info-plate').textContent =
+        `${formatInch(plate.length)}" L × ${formatInch(plate.width)}" W × ${formatInch(plate.thickness)}" T`;
+
+      // Trapezoid A info
+      const trapA = trapezoids[0];
+      document.getElementById('info-trapA').textContent =
+        `Top: ${formatInch(trapA.topW)}", Bottom: ${formatInch(trapA.bottomW)}", Height: ${formatInch(trapA.height)}" | Area: ${formatInch(trapA.area, 2)} sq in`;
+
+      // Trapezoid B info (if double mode)
+      if (trapezoids.length > 1) {
+        const trapB = trapezoids[1];
+        document.getElementById('info-trapB-container').classList.remove('hidden');
+        document.getElementById('legendB').classList.remove('hidden');
+        document.getElementById('info-trapB').textContent =
+          `Top: ${formatInch(trapB.topW)}", Bottom: ${formatInch(trapB.bottomW)}", Height: ${formatInch(trapB.height)}" | Area: ${formatInch(trapB.area, 2)} sq in`;
+      } else {
+        document.getElementById('info-trapB-container').classList.add('hidden');
+        document.getElementById('legendB').classList.add('hidden');
+      }
+
+      // Utilization
+      document.getElementById('info-utilization').textContent = `${utilization.toFixed(1)}%`;
+
+      // Fit status
+      const fitContainer = document.getElementById('info-fit-container');
+      const fitEl = document.getElementById('info-fit');
+
+      if (fits) {
+        fitEl.textContent = 'OK - All shapes fit within plate bounds';
+        fitContainer.classList.remove('warning');
+        fitContainer.classList.add('success');
+      } else {
+        fitEl.textContent = 'Does not fit - Shapes exceed plate bounds with specified margins';
+        fitContainer.classList.remove('success');
+        fitContainer.classList.add('warning');
+      }
+    }
+
+    /**
+     * Process and draw
+     */
+    function processAndDraw() {
+      if (!validateAllInputs()) {
+        alert('Please fix validation errors before drawing.');
+        return;
+      }
+
+      const formData = getFormData();
+
+      // Calculate trapezoid A
+      const trapAGeom = calculateTrapezoidPoints(
+        formData.trapA.topW,
+        formData.trapA.bottomW,
+        formData.trapA.height,
+        formData.trapA.orientation
+      );
+      const trapA = {
+        ...trapAGeom,
+        topW: formData.trapA.topW,
+        bottomW: formData.trapA.bottomW,
+        area: calculateTrapezoidArea(formData.trapA.topW, formData.trapA.bottomW, formData.trapA.height)
+      };
+
+      let nestResult;
+
+      if (formData.doubleMode && formData.trapB) {
+        // Calculate trapezoid B
+        const trapBGeom = calculateTrapezoidPoints(
+          formData.trapB.topW,
+          formData.trapB.bottomW,
+          formData.trapB.height,
+          formData.trapB.orientation
+        );
+        const trapB = {
+          ...trapBGeom,
+          topW: formData.trapB.topW,
+          bottomW: formData.trapB.bottomW,
+          area: calculateTrapezoidArea(formData.trapB.topW, formData.trapB.bottomW, formData.trapB.height)
+        };
+
+        // Nest double
+        nestResult = nestDouble(
+          trapA,
+          trapB,
+          formData.plate.length,
+          formData.plate.width,
+          formData.margin,
+          formData.gap
+        );
+      } else {
+        // Nest single
+        nestResult = nestSingle(
+          trapA,
+          formData.plate.length,
+          formData.plate.width,
+          formData.margin
+        );
+      }
+
+      // Calculate utilization
+      const plateArea = formData.plate.length * formData.plate.width;
+      const totalTrapArea = nestResult.trapezoids.reduce((sum, trap) => sum + trap.area, 0);
+      const utilization = (totalTrapArea / plateArea) * 100;
+
+      // Calculate scale
+      const scale = computeScale(
+        formData.plate.width,
+        formData.plate.length,
+        SVG_WIDTH,
+        SVG_HEIGHT,
+        PADDING_PCT
+      );
+
+      // Prepare draw data
+      const drawData = {
+        plate: formData.plate,
+        trapezoids: nestResult.trapezoids,
+        fits: nestResult.fits,
+        scale,
+        utilization
+      };
+
+      // Draw
+      draw(drawData);
+
+      // Update info
+      updateInfo(drawData);
+    }
+
+    // ========================================================================
+    // EVENT LISTENERS
+    // ========================================================================
+
+    // Form submit
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      processAndDraw();
+    });
+
+    // Double mode toggle
+    doubleModeCheckbox.addEventListener('change', () => {
+      if (doubleModeCheckbox.checked) {
+        trapBSection.classList.remove('hidden');
+      } else {
+        trapBSection.classList.add('hidden');
+      }
+    });
+
+    // Input validation on blur
+    form.querySelectorAll('input[type="number"]').forEach(input => {
+      input.addEventListener('blur', () => validateInput(input));
+    });
+
+    // Enter key triggers draw
+    form.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        processAndDraw();
+      }
+    });
+
+    // Reset button
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      form.reset();
+      clearCanvas();
+
+      // Reset info
+      document.getElementById('info-plate').textContent = '—';
+      document.getElementById('info-trapA').textContent = '—';
+      document.getElementById('info-trapB').textContent = '—';
+      document.getElementById('info-utilization').textContent = '—';
+      document.getElementById('info-fit').textContent = '—';
+
+      // Hide double mode
+      trapBSection.classList.add('hidden');
+      document.getElementById('info-trapB-container').classList.add('hidden');
+      document.getElementById('legendB').classList.add('hidden');
+
+      // Clear errors
+      form.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+      form.querySelectorAll('.error-message').forEach(el => el.classList.remove('show'));
+
+      // Add placeholder text
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', '400');
+      text.setAttribute('y', '300');
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('fill', '#999');
+      text.setAttribute('font-size', '18');
+      text.textContent = 'Enter dimensions and click Draw to visualize';
+      canvas.appendChild(text);
+    });
+
+    // Download button
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      exportSVG(canvas, 'trap-designer-layout.svg');
+    });
+
+    // Preset examples
+    document.getElementById('preset1').addEventListener('click', () => {
+      // Example 1: Single trapezoid that fits
+      document.getElementById('plateLength').value = '96';
+      document.getElementById('plateWidth').value = '48';
+      document.getElementById('plateThickness').value = '0.375';
+      document.getElementById('topWidthA').value = '6';
+      document.getElementById('bottomWidthA').value = '18';
+      document.getElementById('heightA').value = '36';
+      document.getElementById('margin').value = '0.125';
+      document.getElementById('gap').value = '0.125';
+      doubleModeCheckbox.checked = false;
+      trapBSection.classList.add('hidden');
+    });
+
+    document.getElementById('preset2').addEventListener('click', () => {
+      // Example 2: Double nest that fits
+      document.getElementById('plateLength').value = '96';
+      document.getElementById('plateWidth').value = '48';
+      document.getElementById('plateThickness').value = '0.375';
+      document.getElementById('topWidthA').value = '6';
+      document.getElementById('bottomWidthA').value = '18';
+      document.getElementById('heightA').value = '36';
+      document.getElementById('topWidthB').value = '10';
+      document.getElementById('bottomWidthB').value = '14';
+      document.getElementById('heightB').value = '36';
+      document.getElementById('margin').value = '0.125';
+      document.getElementById('gap').value = '0.125';
+      doubleModeCheckbox.checked = true;
+      trapBSection.classList.remove('hidden');
+    });
+
+    document.getElementById('preset3').addEventListener('click', () => {
+      // Example 3: Single trapezoid that doesn't fit
+      document.getElementById('plateLength').value = '24';
+      document.getElementById('plateWidth').value = '12';
+      document.getElementById('plateThickness').value = '0.25';
+      document.getElementById('topWidthA').value = '14';
+      document.getElementById('bottomWidthA').value = '20';
+      document.getElementById('heightA').value = '18';
+      document.getElementById('margin').value = '0.125';
+      document.getElementById('gap').value = '0.125';
+      doubleModeCheckbox.checked = false;
+      trapBSection.classList.add('hidden');
+    });
+  </script>
+</body>
+</html>
